@@ -33,6 +33,12 @@ export async function loadConfig() {
   const config = { ...defaults, ...JSON.parse(contents.replace(/^\uFEFF/u, '')) };
   if (!['local', 'api'].includes(config.mode)) throw new Error('mode 必须是 local 或 api');
   if (typeof config.debug !== 'boolean') throw new Error('debug 必须是 true 或 false');
+  if (config.frontendOrigin) {
+    const frontend = URL.parse(config.frontendOrigin);
+    if (frontend?.protocol !== 'https:' || frontend.origin !== config.frontendOrigin) {
+      throw new Error('frontendOrigin 必须是前端的 HTTPS 来源，只包含协议、域名和端口');
+    }
+  }
   if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('port 必须介于 1 和 65535');
   if (!(config.similarityFloor >= 0 && config.similarityFloor < 1) || !Number.isFinite(config.similarityFloor)) {
     throw new Error('similarityFloor 必须大于等于 0 且小于 1');
@@ -65,7 +71,7 @@ async function body(request) {
 export function createGameServer(config) {
   const sessions = new Map();
   const setupError = config.mode === 'api' && modelSetupError(config);
-  const debug = config.debug === true;
+  const debug = config.debug === true && !config.frontendOrigin;
   return createServer(async (request, response) => {
     const path = request.url;
     try {
@@ -76,13 +82,26 @@ export function createGameServer(config) {
         return response.end(contents);
       }
       const debugRequest = debug && path === '/api/debug/reason';
-      if (request.method !== 'POST' || (!debugRequest && !['/api/game', '/api/guess'].includes(path))) {
+      if (!debugRequest && !['/api/game', '/api/guess'].includes(path)) {
         return json(response, 404, { error: '找不到这个页面。' });
       }
       const host = request.headers.host;
-      if (!/^(?:127\.0\.0\.1|localhost)(?::\d+)?$/i.test(host ?? '') ||
-          (request.headers.origin && request.headers.origin !== `http://${host}`)) {
-        return json(response, 403, { error: '请在本机打开试玩页面。' });
+      const origin = request.headers.origin;
+      const fromFrontend = Boolean(config.frontendOrigin && origin === config.frontendOrigin);
+      const fromLocal = /^(?:127\.0\.0\.1|localhost)(?::\d+)?$/i.test(host ?? '') && (!origin || origin === `http://${host}`);
+      if (config.frontendOrigin) response.setHeader('Vary', 'Origin');
+      if (!fromFrontend && !fromLocal) return json(response, 403, { error: '此来源不能访问试玩接口。' });
+      if (fromFrontend) response.setHeader('Access-Control-Allow-Origin', config.frontendOrigin);
+      if (request.method === 'OPTIONS' && fromFrontend && request.headers['access-control-request-method'] === 'POST') {
+        response.writeHead(204, {
+          'Access-Control-Allow-Methods': 'POST',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '600',
+        });
+        return response.end();
+      }
+      if (request.method !== 'POST') {
+        return json(response, 405, { error: '此接口需要 POST 请求。' });
       }
       if (request.headers['content-type']?.split(';')[0] !== 'application/json') {
         return json(response, 415, { error: '请求必须使用 JSON。' });

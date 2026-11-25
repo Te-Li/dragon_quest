@@ -16,7 +16,7 @@ node .\start.mjs
 
 在仓库的 **Settings → Pages** 将发布来源选为 **GitHub Actions**。Pages 工作流只发布 `public/` 目录。仓库变量 `GAME_API_BASE_URL` 留空时，网站展示游戏开场和前端预览提示。
 
-部署在线 Node 服务后，将该变量设为游戏 API 的 HTTPS 基地址，例如 `https://game.example.com/api/`，再运行 Pages 工作流。分开部署时，在线服务需要允许 Pages 网页的来源通过 HTTPS 跨域调用 API。模型密钥由在线服务保管。
+部署在线 Node 服务后，将该变量设为游戏 API 的 HTTPS 基地址，例如 `https://game.example.com/api/`，再运行 Pages 工作流。在服务器的 `model.config.json` 中将 `frontendOrigin` 设为 Pages 的 HTTPS 来源，例如 `https://te-li.github.io`。该设置允许此网页调用 API，并关闭调试接口。将 Node 留在回环地址，由提供 HTTPS 的反向代理转发 `/api/`。模型密钥由在线服务保管。
 
 ## 使用自己的模型 API
 

@@ -1,6 +1,7 @@
 {
   "mode": "api",
   "debug": false,
+  "frontendOrigin": "",
   "port": 4173,
   "chat": {
     "baseUrl": "https://YOUR-PROVIDER.example/v1",
