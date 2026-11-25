@@ -1,0 +1,49 @@
+name: Deploy frontend to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      - name: Configure frontend API address
+        env:
+          GAME_API_BASE_URL: ${{ vars.GAME_API_BASE_URL }}
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+
+          const rawUrl = process.env.GAME_API_BASE_URL?.trim();
+          const apiUrl = rawUrl ? new URL(rawUrl) : null;
+          if (apiUrl && (apiUrl.protocol !== 'https:' || apiUrl.username || apiUrl.password || apiUrl.search || apiUrl.hash)) {
+            throw new Error('GAME_API_BASE_URL must be an HTTPS API base URL without credentials, query, or fragment');
+          }
+          if (apiUrl && !apiUrl.pathname.endsWith('/')) apiUrl.pathname += '/';
+          const base = apiUrl ? apiUrl.href.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
+          const page = 'public/index.html';
+          const html = readFileSync(page, 'utf8');
+          writeFileSync(page, html.replace('<meta name="game-api-base" content="/api/">', () => `<meta name="game-api-base" content="${base}">`));
+          JS
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

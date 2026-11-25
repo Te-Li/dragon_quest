@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#332742">
+  <meta name="game-api-base" content="/api/">
+  <title>勇者逗恶龙</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main class="stage" aria-label="灰烬峡谷">
+    <div class="world">
+      <canvas id="scene" width="360" height="240" role="img" aria-label="夕阳下的灰烬峡谷，勇者从天上翻滚落地，与守在公主身旁的红龙对峙。"></canvas>
+      <section class="speech" id="dragon-speech" aria-label="恶龙的台词" hidden>
+        <div class="speech-head">
+          <span class="speaker">恶龙</span>
+        </div>
+        <div id="lines" class="lines" tabindex="0" aria-live="polite" aria-atomic="true"></div>
+      </section>
+      <section class="hero-speech" id="hero-speech" aria-label="勇者的台词" hidden>
+        <div class="speech-head"><span class="speaker">勇者</span></div>
+        <p id="hero-lines" tabindex="0" aria-live="polite" aria-atomic="true"></p>
+      </section>
+      <div class="floating-number" role="status" id="score" hidden></div>
+    </div>
+    <div id="dragon-effects" class="dragon-effects" aria-hidden="true"></div>
+
+    <header class="masthead">
+      <div class="title"><h1>勇者逗恶龙</h1><span>灰烬峡谷</span></div>
+      <div class="actions">
+        <span id="mode" class="mode" hidden></span>
+        <button id="reveal" type="button" hidden>查看谜底</button>
+        <button id="restart" type="button" disabled><span aria-hidden="true">↻</span> 新开一局</button>
+      </div>
+    </header>
+
+    <div class="controls">
+      <aside class="known-clues" id="known-clues" aria-labelledby="clues-title" hidden>
+        <h2 id="clues-title">已知线索</h2>
+        <ul id="clue-emojis" tabindex="0" aria-live="polite"></ul>
+      </aside>
+
+      <div class="interaction">
+        <div class="ending" id="ending" aria-live="polite" hidden></div>
+        <form id="form" aria-label="向恶龙说出理由">
+          <label for="guess" class="sr-only">说出你的理由</label>
+          <textarea id="guess" name="guess" rows="1" maxlength="200" enterkeyhint="send" placeholder="说出你的理由……" disabled required></textarea>
+          <button class="submit" id="submit" type="submit" disabled><span id="submit-label">说服恶龙</span> <span aria-hidden="true">↗</span></button>
+        </form>
+        <div id="error" class="error" role="alert" hidden></div>
+      </div>
+    </div>
+  </main>
+  <dialog id="debug-dialog" aria-labelledby="debug-title">
+    <div class="debug-heading">
+      <h2 id="debug-title">本局谜底</h2>
+      <form method="dialog"><button type="submit" autofocus>关闭</button></form>
+    </div>
+    <p id="debug-reason" aria-live="polite"></p>
+  </dialog>
+</body>
+</html>

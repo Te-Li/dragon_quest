@@ -1,0 +1,17 @@
+{
+  "mode": "api",
+  "debug": false,
+  "port": 4173,
+  "chat": {
+    "baseUrl": "https://YOUR-PROVIDER.example/v1",
+    "apiKey": "YOUR_CHAT_API_KEY",
+    "model": "YOUR_CHAT_MODEL"
+  },
+  "embedding": {
+    "baseUrl": "https://YOUR-PROVIDER.example/v1",
+    "apiKey": "YOUR_EMBEDDING_API_KEY",
+    "model": "YOUR_EMBEDDING_MODEL"
+  },
+  "similarityFloor": 0.2,
+  "winScore": 72
+}
