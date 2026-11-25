@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { newGame, takeTurn } from './game.mjs';
 
+const answerUnlockTurns = 5;
+
 const staticFiles = {
   '/': ['index.html', 'text/html'],
   '/style.css': ['style.css', 'text/css'],
@@ -109,7 +111,8 @@ export function createGameServer(config) {
       const input = await body(request);
       if (!input || typeof input !== 'object' || Array.isArray(input)) return json(response, 400, { error: '请求格式有误。' });
 
-      if (path === '/api/game') {
+      const revealRequest = path === '/api/game' && input.action === 'reveal';
+      if (path === '/api/game' && !revealRequest) {
         if (setupError) return json(response, 503, { error: setupError });
         for (const [id, session] of sessions) {
           if (!session.busy && Date.now() - session.activity > 2 * 60 * 60 * 1000) sessions.delete(id);
@@ -131,6 +134,12 @@ export function createGameServer(config) {
       const game = sessions.get(input.id);
       if (!game) return json(response, 404, { error: '这局已经结束或过期，请开启新一局。' });
       if (debugRequest) return json(response, 200, { reason: game.reason });
+      if (revealRequest) {
+        if (game.history.length < answerUnlockTurns) {
+          return json(response, 403, { error: `完成 ${answerUnlockTurns} 轮对话后可以查看答案。` });
+        }
+        return json(response, 200, { reason: game.reason });
+      }
       if (game.won || game.busy) return json(response, 409, { error: game.won ? '你已经救出公主了。' : '恶龙还在回答上一句话。' });
       const guess = typeof input.guess === 'string' ? input.guess.trim() : '';
       if (!guess || guess.length > 200) return json(response, 400, { error: '请输入 1 到 200 字的理由。' });
@@ -140,7 +149,7 @@ export function createGameServer(config) {
         game.history.push({ guess, score: result.score, rebuttal: result.lines[0], hint: result.lines[1] });
         game.won = result.won;
         game.activity = Date.now();
-        return json(response, 200, result);
+        return json(response, 200, { ...result, canReveal: game.history.length >= answerUnlockTurns });
       } finally {
         game.busy = false;
       }

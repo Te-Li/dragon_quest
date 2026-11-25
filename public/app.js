@@ -24,6 +24,7 @@ const errorBox = $('error');
 let gameId;
 let phase = 'idle';
 let lastScore;
+let canReveal = false;
 const seenClueEmojis = new Set();
 const viewport = window.visualViewport;
 
@@ -101,7 +102,8 @@ async function openingDialogue() {
 
 function controls() {
   restart.disabled = ['preparing', 'queued', 'answering', 'preview'].includes(phase);
-  reveal.disabled = !['ready', 'won'].includes(phase);
+  reveal.disabled = !canReveal || !['ready', 'won'].includes(phase);
+  reveal.title = canReveal ? '显示本局答案' : '完成五轮对话后解锁';
   guess.disabled = phase !== 'preparing' && phase !== 'ready';
   submit.disabled = guess.disabled || !guess.value.trim();
   submitLabel.textContent = phase === 'queued' ? '等恶龙就绪…' : '说服恶龙';
@@ -140,6 +142,7 @@ async function begin() {
   if (phase !== 'unavailable') guess.value = '';
   phase = 'preparing';
   lastScore = undefined;
+  canReveal = false;
   score.hidden = true;
   score.textContent = '';
   heroSpeech.hidden = true;
@@ -166,9 +169,6 @@ async function begin() {
   try {
     const [game] = await Promise.all([request('game', { previousId: gameId }), intro]);
     gameId = game.id;
-    reveal.hidden = !game.debug;
-    $('mode').textContent = game.mode === 'api' ? '模型模式' : '本地试玩';
-    $('mode').hidden = false;
     const queued = phase === 'queued';
     phase = 'ready';
     if (queued) return answer(guess.value.trim());
@@ -189,6 +189,7 @@ async function answer(text) {
   say('恶龙正在琢磨……');
   try {
     const result = await request('guess', { id: gameId, guess: text });
+    canReveal = result.canReveal === true;
     say(...result.lines);
     guess.value = '';
     showScore(result.score);
@@ -239,11 +240,12 @@ guess.addEventListener('keydown', event => {
 });
 restart.addEventListener('click', begin);
 reveal.addEventListener('click', async () => {
+  if (reveal.disabled) return;
   const id = gameId;
   debugReason.textContent = '正在读取本局谜底……';
   debugDialog.showModal();
   try {
-    const result = await request('debug/reason', { id });
+    const result = await request('game', { id, action: 'reveal' });
     if (gameId === id) debugReason.textContent = result.reason;
   } catch (error) {
     if (gameId === id) debugReason.textContent = errorMessage(error);
