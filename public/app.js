@@ -64,7 +64,7 @@ function element(tag, className, content) {
 
 function say(...lines) {
   speech.replaceChildren(...lines.map(line => element('p', '', line)));
-  dragonAnnouncement.textContent = lines.join(' ');
+  dragonAnnouncement?.replaceChildren(lines.join(' '));
 }
 
 function rememberHint(hint, suggested) {
@@ -98,7 +98,7 @@ async function speak(lines) {
       await wait(20 + Math.random() * 26 + (/[，。！？；、…]/u.test(segment) ? 70 : 0));
     }
   }
-  dragonAnnouncement.textContent = lines.join(' ');
+  dragonAnnouncement?.replaceChildren(lines.join(' '));
 }
 
 async function openingDialogue() {
@@ -166,7 +166,7 @@ async function begin() {
   clearDragonEffects();
   dragonSpeech.hidden = true;
   speech.replaceChildren();
-  dragonAnnouncement.textContent = '';
+  dragonAnnouncement?.replaceChildren();
   const intro = new Promise(resolve => playScene(resolve)).then(openingDialogue);
   if (!apiBase) {
     phase = 'preview';
