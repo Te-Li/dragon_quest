@@ -6,6 +6,7 @@ const apiBase = document.querySelector('meta[name="game-api-base"]')?.content ??
 const stage = document.querySelector('.stage');
 const speech = $('lines');
 const dragonSpeech = $('dragon-speech');
+const dragonAnnouncement = $('dragon-announcement');
 const heroSpeech = $('hero-speech');
 const heroLines = $('hero-lines');
 const guess = $('guess');
@@ -27,6 +28,8 @@ let lastScore;
 let canReveal = false;
 const seenClueEmojis = new Set();
 const viewport = window.visualViewport;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const speechSegments = new Intl.Segmenter('zh', { granularity: 'grapheme' });
 
 function fitVisibleViewport() {
   const adjusted = Math.abs(viewport.scale - 1) < 0.01 &&
@@ -61,6 +64,7 @@ function element(tag, className, content) {
 
 function say(...lines) {
   speech.replaceChildren(...lines.map(line => element('p', '', line)));
+  dragonAnnouncement.textContent = lines.join(' ');
 }
 
 function rememberHint(hint, suggested) {
@@ -77,27 +81,33 @@ function rememberHint(hint, suggested) {
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-async function openingDialogue() {
-  const lines = ['你就是勇者？', '你告诉我，放了公主的理由是什么？'];
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    dragonSpeech.hidden = false;
+async function speak(lines) {
+  if (reducedMotion.matches) {
     say(...lines);
     return;
   }
-  await wait(110);
-  dragonSpeech.hidden = false;
-  dragonSpeech.animate([{ opacity: 0, scale: .94 }, { opacity: 1, scale: 1 }], { duration: 210, easing: 'ease-out' });
-  speech.setAttribute('aria-live', 'off');
+  speech.replaceChildren();
+  speech.scrollTop = 0;
   for (const line of lines) {
     const row = element('p');
     speech.append(row);
-    for (const char of line) {
-      row.textContent += char;
-      await wait(20 + Math.random() * 26 + (/[，。？]/u.test(char) ? 85 : 0));
+    for (const { segment } of speechSegments.segment(line)) {
+      const follow = speech.scrollTop + speech.clientHeight >= speech.scrollHeight - 8;
+      row.textContent += segment;
+      if (follow) speech.scrollTop = speech.scrollHeight;
+      await wait(20 + Math.random() * 26 + (/[，。！？；、…]/u.test(segment) ? 70 : 0));
     }
   }
-  speech.setAttribute('aria-live', 'polite');
-  say(...lines);
+  dragonAnnouncement.textContent = lines.join(' ');
+}
+
+async function openingDialogue() {
+  if (!reducedMotion.matches) await wait(110);
+  dragonSpeech.hidden = false;
+  if (!reducedMotion.matches) {
+    dragonSpeech.animate([{ opacity: 0, scale: .94 }, { opacity: 1, scale: 1 }], { duration: 210, easing: 'ease-out' });
+  }
+  await speak(['你就是勇者？', '你告诉我，放了公主的理由是什么？']);
 }
 
 function controls() {
@@ -129,7 +139,7 @@ function showScore(value) {
     score.append(element('small', `score-change ${direction}`, `${arrow}${Math.abs(change)}`));
   }
   score.hidden = false;
-  if ((!first && !change) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if ((!first && !change) || reducedMotion.matches) return;
   const from = first ? 'scale(.65)' : `translateY(${change > 0 ? '14px' : '-14px'}) scale(.91)`;
   score.animate([
     { transform: from, opacity: first ? 0 : .45 },
@@ -156,6 +166,7 @@ async function begin() {
   clearDragonEffects();
   dragonSpeech.hidden = true;
   speech.replaceChildren();
+  dragonAnnouncement.textContent = '';
   const intro = new Promise(resolve => playScene(resolve)).then(openingDialogue);
   if (!apiBase) {
     phase = 'preview';
@@ -190,9 +201,9 @@ async function answer(text) {
   try {
     const result = await request('guess', { id: gameId, guess: text });
     canReveal = result.canReveal === true;
-    say(...result.lines);
     guess.value = '';
     showScore(result.score);
+    await speak(result.lines);
     tossDragonEmoji(result.lines, result.emojis);
     if (result.won) {
       phase = 'won';
