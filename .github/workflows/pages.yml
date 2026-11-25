@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -15,11 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/configure-pages@v5
@@ -44,6 +42,26 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Wait for the Pages artifact to be indexed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in {1..10}; do
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq 'any(.artifacts[]; .name == "github-pages" and (.expired | not))')" = true ]; then
+              exit 0
+            fi
+            sleep 3
+          done
+          echo 'The github-pages artifact did not appear in this workflow run.' >&2
+          exit 1
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
