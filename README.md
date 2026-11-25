@@ -18,6 +18,10 @@ node .\start.mjs
 
 部署在线 Node 服务后，将该变量设为游戏 API 的 HTTPS 基地址，例如 `https://game.example.com/api/`，再运行 Pages 工作流。在服务器的 `model.config.json` 中将 `frontendOrigin` 设为 Pages 的 HTTPS 来源，例如 `https://te-li.github.io`。该设置允许此网页调用 API，并关闭调试接口。将 Node 留在回环地址，由提供 HTTPS 的反向代理转发 `/api/`。模型密钥由在线服务保管。
 
+当前 Ubuntu 部署使用 `dragon-quest` systemd 服务。登录服务器后，用 `sudoedit /opt/dragon-quest/app/model.config.json` 填写 `chat.apiKey` 和 `embedding.apiKey`，保存后运行 `sudo systemctl restart dragon-quest`。可用 `sudo journalctl -u dragon-quest -n 30 --no-pager` 查看服务日志。
+
+Nginx 配置位于 `/etc/nginx/conf.d/dragon-quest.conf`。它提供 HTTPS，并给开局和猜测接口限流。IP 证书由 `dragon-quest-cert-renew.timer` 定期检查与续签。
+
 ## 使用自己的模型 API
 
 直接编辑工作区中的 `model.config.json`。如果该文件不存在，运行 `Copy-Item .\model.config.example.json .\model.config.json` 创建它。
